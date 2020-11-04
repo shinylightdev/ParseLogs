@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Linq;
 
 namespace ParseLogs
 {
@@ -47,14 +48,12 @@ namespace ParseLogs
     static void Main(string[] args)
     {
       string connectionString = ConfigurationManager.AppSettings["ConnectionString"];
-
-      string headers = "logfile date cs-uri-stem cs-uri-query s-contentpath sc-status s-computername cs(Referer) sc-win32-status sc-bytes cs-bytes c-ip cs-method TimeTakenMS time-local cs(User-Agent) cs-username";
-
       string logDirectory = ConfigurationManager.AppSettings["LogFilesDirectory"];
-      string logFile = logDirectory + @"\" + Guid.NewGuid().ToString().Split('-')[0] + ".log";
-      
       string databaseTable = ConfigurationManager.AppSettings["DatabaseTable"];
       int maxEntries = Convert.ToInt32(ConfigurationManager.AppSettings["MaxEntriesToSaveToDatabase"]);
+
+      string logFile = logDirectory + @"\" + Guid.NewGuid().ToString().Split('-')[0] + ".log";
+      string headers = IIS.GetHeadersFromLogFile(logDirectory);
 
       Console.Write("Merging all IIS Logs from directory...\n");
       IIS.MergeIISLogsFromDirectory(headers, logDirectory, logFile);
@@ -63,8 +62,11 @@ namespace ParseLogs
 
       try
       {
-        List<IISEntry> entries = IIS.GetIISEntries(headers, logFile, maxEntries);
-        IIS.SaveIISLogFileToDatabase(entries, connectionString, databaseTable, maxEntries);
+        //List<IISEntry> entries = IIS.GetIISEntries(logFile, maxEntries);
+
+
+        //IIS.SaveIISLogFileToDatabase(entries, connectionString, databaseTable, maxEntries);
+
         Console.WriteLine("Complete!");
       }
       catch (Exception e)
@@ -74,11 +76,15 @@ namespace ParseLogs
       finally
       {
         // Let's delete the temp file if one was created.  
-        File.Delete(logFile);
-      }      
-
+        //File.Delete(logFile);
+      }
+      
       Console.WriteLine("done");
-      // Console.ReadLine();
-    }    
+      Console.ReadLine();
+
+    }
+
+    
+
   }
 }

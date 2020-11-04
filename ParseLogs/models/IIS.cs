@@ -23,6 +23,7 @@ namespace ParseLogs.Models
       using (var bcp = new SqlBulkCopy(connectionString))
       {
         using (var reader = ObjectReader.Create(iisEntries, "logfile", "datestamp", "cs_uri_stem", "cs_uri_query", "s_contentpath", "sc_status", "s_computername", "cs_referer", "sc_win32_status", "sc_bytes", "cs_bytes", "c_ip", "cs_method", "time_taken_ms", "time_local", "cs_User_Agent", "cs_username"))
+
         {
           bcp.BatchSize = 5000;
           bcp.BulkCopyTimeout = 30;
@@ -52,13 +53,13 @@ namespace ParseLogs.Models
     }
 
     /// <summary>
-    /// Get List of all IIS entries frSpinnerProgressom log file. 
+    /// Get List of all IIS entries 
     /// </summary>
     /// <param name="headers"></param>
     /// <param name="logFile"></param>
     /// <param name="maxEntries"></param>
     /// <returns></returns>
-    public static List<IISEntry> GetIISEntries(string headers, string logFile, int maxEntries = 1000000)
+    public static List<IISEntry> GetIISEntries(string logFile, int maxEntries = 1000000)
     {
       List<IISEntry> list = new List<IISEntry>();
 
@@ -76,13 +77,14 @@ namespace ParseLogs.Models
             sr.ReadLine();
 
             // If there's a problem mapping columns from the IIS Log to an IISEntry object, let's save to a log file.
-            //List<string> errorLines = new List<string>();
+            // List<string> errorLines = new List<string>();
 
             int lineCount = 0;
 
             // Read the Line into the string variable, ommitting headers if they were inserted already 
             while ((line = sr.ReadLine()) != null && lineCount <= maxEntries)
             {
+              // Ignore IIS log comments. 
               if (line.IndexOf("#", 0) != 0)
               {
                 try
@@ -115,6 +117,7 @@ namespace ParseLogs.Models
                 }
                 catch
                 {
+                  // TODO: Do something in case error. 
                 }
 
                 lineCount++;
@@ -127,7 +130,8 @@ namespace ParseLogs.Models
     }
 
     /// <summary>
-    /// Merges all IIS Logs in a directory into 1 IIS Log, after scrubbing them. 
+    /// Merges all IIS Logs in a directory into 1 IIS Log file, after scrubbing them. Removes all # comments and keeps headers. 
+    /// Prepends the column "logfile" to signify the file associated with the log entries. 
     /// </summary>
     /// <param name="headers"></param>
     /// <param name="logDirectory"></param>
@@ -159,13 +163,47 @@ namespace ParseLogs.Models
       }
     }
 
+    /// <summary>
+    /// Gets a string containing log file header names, comma separated.
+    /// </summary>
+    /// <returns></returns>
+    public static string GetHeadersFromLogFile(string logDirectory)
+    {
+      string headers = "";
+      string firstFile = Directory.GetFiles(logDirectory).First();
+
+      using (FileStream fs = File.Open(firstFile, FileMode.Open, FileAccess.Read))
+      {
+        using (BufferedStream bs = new BufferedStream(fs))
+        {
+          using (StreamReader sr = new StreamReader(bs))
+          {
+            // Represents the entire line in the file.
+            string line;
+
+            while ((line = sr.ReadLine()) != null)
+            {
+              string fieldsHeader = "#Fields";
+              if (line.IndexOf(fieldsHeader, 0) == 0)
+              {
+                headers = line.Replace(fieldsHeader + ": ", "");
+                headers = "logfile " + headers;
+                break;
+              }
+            }
+          }
+        }
+      }
+      return headers;
+    }
+
 
     /// <summary>
     /// Cleans up IIS logs by removing all headers except the first one. 
     /// </summary>    
     /// <param name="sw"></param>
     /// <param name="path"></param>
-    private static void ScrubIISLog(StreamWriter sw, string path)
+    public static void ScrubIISLog(StreamWriter sw, string path)
     {
       // Open the file stream
       using (FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
