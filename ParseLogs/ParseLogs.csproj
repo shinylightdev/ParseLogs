@@ -48,6 +48,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="lib\Utility.cs" />
+    <Compile Include="models\IIS.cs" />
+    <Compile Include="models\IISEntry.cs" />
+    <Compile Include="models\Messages.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
