@@ -7,14 +7,8 @@ using System.IO;
 
 namespace ParseLogs
 {
-
   class Program
   {
-
-    /// <summary>
-    /// MAIN!!
-    /// </summary>
-    /// <param name="args"></param>
     static void Main(string[] args)
     {
       string connectionString = ConfigurationManager.AppSettings["ConnectionString"];

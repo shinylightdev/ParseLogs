@@ -19,12 +19,10 @@ namespace ParseLogs.Models
     /// <param name="maxEntries"></param>
     public static void SaveIISLogFileToDatabase<T>(IEnumerable<T> iisEntries, string connectionString, string databaseTable, int maxEntries = 100000)
     {
-      string[] propertyNames = (new IISEntry()).GetType().GetProperties().Select(property => property.Name).ToArray();
-      
+      string[] propertyNames = (new IISEntry()).GetType().GetProperties().Select(property => property.Name).ToArray();      
 
       using (var bcp = new SqlBulkCopy(connectionString))
-      {
-        //using (var reader = ObjectReader.Create(iisEntries, "logfile", "datestamp", "cs_uri_stem", "cs_uri_query", "s_contentpath", "sc_status", "s_computername", "cs_referer", "sc_win32_status", "sc_bytes", "cs_bytes", "c_ip", "cs_method", "time_taken_ms", "time_local", "cs_User_Agent", "cs_username"))
+      {        
         using (var reader = ObjectReader.Create(iisEntries, propertyNames))
         {
           bcp.BatchSize = 5000;
