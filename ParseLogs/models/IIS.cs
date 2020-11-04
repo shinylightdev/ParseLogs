@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using ParseLogs.Lib;
 
 namespace ParseLogs.Models
 {
@@ -20,10 +19,13 @@ namespace ParseLogs.Models
     /// <param name="maxEntries"></param>
     public static void SaveIISLogFileToDatabase<T>(IEnumerable<T> iisEntries, string connectionString, string databaseTable, int maxEntries = 100000)
     {
+      string[] propertyNames = (new IISEntry()).GetType().GetProperties().Select(property => property.Name).ToArray();
+      
+
       using (var bcp = new SqlBulkCopy(connectionString))
       {
-        using (var reader = ObjectReader.Create(iisEntries, "logfile", "datestamp", "cs_uri_stem", "cs_uri_query", "s_contentpath", "sc_status", "s_computername", "cs_referer", "sc_win32_status", "sc_bytes", "cs_bytes", "c_ip", "cs_method", "time_taken_ms", "time_local", "cs_User_Agent", "cs_username"))
-
+        //using (var reader = ObjectReader.Create(iisEntries, "logfile", "datestamp", "cs_uri_stem", "cs_uri_query", "s_contentpath", "sc_status", "s_computername", "cs_referer", "sc_win32_status", "sc_bytes", "cs_bytes", "c_ip", "cs_method", "time_taken_ms", "time_local", "cs_User_Agent", "cs_username"))
+        using (var reader = ObjectReader.Create(iisEntries, propertyNames))
         {
           bcp.BatchSize = 5000;
           bcp.BulkCopyTimeout = 30;
@@ -39,13 +41,11 @@ namespace ParseLogs.Models
             Console.WriteLine(percentProgress.ToString() + "% complete.");
           };
 
-
           bcp.DestinationTableName = databaseTable;
 
           // An unhandled exception of type 'System.Data.SqlClient.SqlException' occurred in System.Data.dll
           // Additional information: A transport-level error has occurred when receiving results from the server. 
           // (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by the remote host.)
-
           bcp.WriteToServer(reader);
 
         }
@@ -53,13 +53,13 @@ namespace ParseLogs.Models
     }
 
     /// <summary>
-    /// Get List of all IIS entries 
+    /// Get List of all IIS entries.
     /// </summary>
-    /// <param name="headers"></param>
     /// <param name="logFile"></param>
+    /// <param name="mapper"></param>
     /// <param name="maxEntries"></param>
     /// <returns></returns>
-    public static List<IISEntry> GetIISEntries(string logFile, int maxEntries = 1000000)
+    public static List<IISEntry> GetIISEntries(string logFile, Func<string, IISEntry> mapper, int maxEntries = 1000000)
     {
       List<IISEntry> list = new List<IISEntry>();
 
@@ -89,30 +89,7 @@ namespace ParseLogs.Models
               {
                 try
                 {
-                  IISEntry entry = new IISEntry()
-                  {
-                    cs_uri_stem = Utility.SplitString(line)[2],
-                    sc_status = Utility.SplitString(line)[5],
-                    sc_bytes = Utility.SplitString(line)[9],
-                    cs_bytes = Utility.SplitString(line)[10],
-                    cs_method = Utility.SplitString(line)[12],
-                    time_taken_ms = Convert.ToInt32(Utility.SplitString(line)[13]),
-                    cs_User_Agent = Utility.SplitString(line)[15],
-
-                    // Modified
-                    datestamp = Convert.ToDateTime(Utility.SplitString(line)[1] + " " + Utility.SplitString(line)[14]),
-                    s_computername = Utility.SplitString(line)[6].Substring(Math.Max(0, Utility.SplitString(line)[6].Length - 1)),
-                    cs_referer = Utility.SplitString(line)[7] == "-" ? null : Utility.SplitString(line)[7].Replace("https://[WEBSITE]", ""),
-                    cs_uri_query = Utility.SplitString(line)[3] == "-" ? null : Utility.SplitString(line)[3],
-                    logfile = Utility.SplitString(line)[0].Replace("PROD-Server_", "").Replace(".log", ""),
-                    c_ip = Utility.SplitString(line)[11] == "-" ? null : Utility.SplitString(line)[11],
-
-                    // Set as empty
-                    time_local = null,
-                    sc_win32_status = null,
-                    s_contentpath = null,
-                    cs_username = null
-                  };
+                  IISEntry entry = mapper(line);
                   list.Add(entry);
                 }
                 catch
@@ -227,7 +204,5 @@ namespace ParseLogs.Models
         }
       }
     }
-
-
   }
 }
